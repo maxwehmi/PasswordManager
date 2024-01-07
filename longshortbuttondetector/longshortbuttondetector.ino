@@ -1,29 +1,43 @@
 #include <Keyboard.h>
 #include <Keyboard_de_DE.h> // Has to be changed depending on the users Keyboard Layout or the user has to switch to a german layout temporarily
 // maybe this information could also be saved on the sd card
+#include <SD.h>
 
 // Constants
 const int buttonPin = 2;
+const int SDPin = 4;
 const String CodeString = "Code: ";
+const String dataPath = "passwords.csv";
 
 // Global variables
-bool buttonOn;
-int buttonOnTime;
 String code;
-String websites[] = {"google", "google2", "amazon", "twitter"};
-String usernames[] = {"acc1", "acc2", "acc3", "acc1"};
-String passwords[] = {"pw1", "pw2", "pw3", "pw4"};
-
+File userdata;
 
 void setup() {
   // Initialize
   Keyboard.begin(KeyboardLayout_de_DE); // see the comment after #include <Keyboard_de_DE.h>
-  pinMode(buttonPin,INPUT); // initialize the pushbutton pin as an input:
+  pinMode(buttonPin,INPUT); // Initialize the pushbutton pin as an input
 
   // The actual program
   awaitShortClick(); // Waits for the user to click once, to start the password manager
-  getCode(); // Asks the user to enter the password and saves it to "code"
-  insertUserdata(); // Inserts the credentials
+  if (getUserdata()) { // Gets the userdata from the SD Card. If it returns false, there was an error
+    getCode(); // Asks the user to enter the password and saves it to "code"
+    insertUserdata(); // Inserts the credentials
+  }
+  Keyboard.end();
+}
+
+bool getUserdata() {
+  if (!SD.begin(SDPin)) {
+    printString("ERROR: SD-Card not found!");
+    return false;
+  }
+  userdata = SD.open(dataPath);
+  if (!userdata) {
+    printString("ERROR: Password-File not found!");
+    return false;
+  }
+  return true;
 }
 
 // Asks the user to enter a 4-digit code to decrypt the passwords later on. The code is saved in the global variable "code"
@@ -49,38 +63,63 @@ void getCode() {
 
 // Cycles through the saved user data and enters the selected credentials
 void insertUserdata() {
-  int size = sizeof(websites) / sizeof(websites[0]); // The size of the arrays is saved (maybe this can be removed if the data is read from an sd card)
-  int index = 0; // The index of the current credential
-  int l = printString(websites[index]);
-  while (true) { // Until the user selects a set of credentials, this loop runs
-    if (awaitShortClick()) { // If the button was pressed shortly, the user wants to go to the next Credential
-      index = (index + 1) % size; // The index is increased by one (modulo the size, to loop back around at the end)
-      deleteChars(l); // It deletes the name of the last set of credentials and
-      l = printString(websites[index]); // prints the next one
-    } else { // If the button was pressed long, the user wants to use this set of credentials
-      deleteChars(l); // The name is deleted to properly insert the username
-      printString(usernames[index]); // The username is inserted
-      awaitShortClick(); // The user is expected to tap the button to notify the password manager that they have nacvigated to the password field
-      printString(decrypt(passwords[index])); // Inserts the password
-      break; // Breaks the loop to end the service
+  String entry = "";
+  int l = 0;
+  bool exit = false;
+  while (!exit) {
+    userdata = SD.open(dataPath);
+    while (userdata.available() && (!exit)) {
+      entry = readNextEntry();
+      l = printString(entry); // WebsiteName
+      if (awaitShortClick()) {
+        deleteChars(l);
+        jumpToEndOfLine();
+      } else {
+        deleteChars(l);
+        entry = readNextEntry();
+        printString(entry); // username
+        entry = readNextEntry();
+        awaitShortClick();
+        printString(entry); // password
+        exit = true;
+      }
+    }
+    userdata.close();
+  }
+}
+
+String readNextEntry() {
+  String entry = "";
+  while (userdata.available()) {
+    char m = userdata.read();
+    if (((int) m == 9) || (m == '\n')){
+      break;
+    } else if((int) m != 13) {
+      entry += m;
+    }
+  }
+  return entry;
+}
+
+void jumpToEndOfLine() {
+  while (userdata.available()) {
+    char m = userdata.read();
+    if (m == '\n'){
+      break;
     }
   }
 }
 
 // Waits for the button to be pressed and return true, if the click was short (<=300ms) and false if it was long (>300ms)
 bool awaitShortClick() {
-  buttonOnTime = 0;
-  buttonOn = false;
+  int buttonOnTime = 0;
+  bool buttonOn = false; // Could be removed and the condition in 5 lines replaced by buttonOnTime>0
   while (true) { // Tests every 10ms if the button is pressed
     if (digitalRead(buttonPin) == HIGH) { // If the button is pressed,
       buttonOn = true; // it is saved that it was on and
       buttonOnTime++; // increases the timer
     } else if (buttonOn) { // If the button is not pressed, but was pressed, the click is over
-      if (buttonOnTime <= 30) { // If the click time was less than 30 ticks, so less than 300ms,
-        return true; // the method returns true
-      } else { //Otherwise it was a long click and
-        return false; //the method returns false
-      }
+      return (buttonOnTime <= 30); // Returns true, if the button was pressed for less than 30 ticks, so less than 300ms
     }
     delay(10);
   }
