@@ -2,12 +2,12 @@
 #include <Keyboard_de_DE.h> // Has to be changed depending on the users Keyboard Layout or the user has to switch to a german layout temporarily
 // maybe this information could also be saved on the sd card
 #include <SD.h>
+#include <SPI.h>
 
 // Constants
 const int buttonPin = 2;
 const int SDPin = 4;
 const String CodeString = "Code: ";
-const String dataPath = "passwords.csv";
 
 // Global variables
 String code;
@@ -20,24 +20,9 @@ void setup() {
 
   // The actual program
   awaitShortClick(); // Waits for the user to click once, to start the password manager
-  if (getUserdata()) { // Gets the userdata from the SD Card. If it returns false, there was an error
-    getCode(); // Asks the user to enter the password and saves it to "code"
-    insertUserdata(); // Inserts the credentials
-  }
+  getCode(); // Asks the user to enter the password and saves it to "code"
+  insertUserdata(); // Inserts the credentials
   Keyboard.end();
-}
-
-bool getUserdata() {
-  if (!SD.begin(SDPin)) {
-    printString("ERROR: SD-Card not found!");
-    return false;
-  }
-  userdata = SD.open(dataPath);
-  if (!userdata) {
-    printString("ERROR: Password-File not found!");
-    return false;
-  }
-  return true;
 }
 
 // Asks the user to enter a 4-digit code to decrypt the passwords later on. The code is saved in the global variable "code"
@@ -67,7 +52,7 @@ void insertUserdata() {
   int l = 0;
   bool exit = false;
   while (!exit) {
-    userdata = SD.open(dataPath);
+    userdata = SD.open("");
     while (userdata.available() && (!exit)) {
       entry = readNextEntry();
       l = printString(entry); // WebsiteName
