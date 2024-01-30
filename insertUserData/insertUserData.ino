@@ -5,8 +5,7 @@
 
 ExternalEEPROM myMem;
 const int buttonPin = 4;
-byte DataSize = 50;
-byte numOfEntries = 0;
+int currentNextAddr = 0;
 
 void setup() {
   Wire.begin();
@@ -24,24 +23,24 @@ void setup() {
   }
 
   printString("BOOTED!\n");
-  numOfEntries = myMem.read(0);
-  printString(" I got numOfEntries: " + String(numOfEntries) + "\n");
 
   showData();
 }
 
 void showData() {
-  if (numOfEntries == 0) {
+  if (myMem.read(0) == 0) {
     printString("No Data avalable.\n");
   } else {
-    String currentCredentials = "";
+    String currentString = "";
     int l = 0;
     while (true) {
-      for (int i = 0; i < numOfEntries; i++) {
-        myMem.getString(10 + i * DataSize, currentCredentials);
-        l = printString(currentCredentials);
-        awaitShortClick();
-        deleteChars(l);
+      myMem.getString(currentNextAddr + 1, currentString);
+      l = printString(currentString);
+      awaitShortClick();
+      deleteChars(l);
+      currentNextAddr += myMem.read(currentNextAddr);
+      if (myMem.read(currentNextAddr) == 0) {
+        currentNextAddr = 0;
       }
     }
   }

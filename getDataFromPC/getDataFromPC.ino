@@ -2,8 +2,8 @@
 #include "SparkFun_External_EEPROM.h" // Click here to get the library: http://librarymanager/All#SparkFun_External_EEPROM
 
 ExternalEEPROM myMem;
-byte numOfEntries = 0;
-byte DataSize = 50;
+
+int currentNextAddr = 0;
 
 void setup() {
   Wire.begin();
@@ -17,23 +17,26 @@ void setup() {
     while (true);
   }
 
+  currentNextAddr = myMem.read(0);
+  while (myMem.read(currentNextAddr) != 0) {
+    currentNextAddr += myMem.read(currentNextAddr);
+  }
+
   Serial.println("BOOTED!");
-  numOfEntries = myMem.read(0);
-  Serial.println(" I got numOfEntries: " + String(numOfEntries));
+  Serial.println("Current Next Address: " + String(currentNextAddr));
 }
 
 void write(String s) {
-  int nextAddr = myMem.putString(numOfEntries * DataSize + 10, s);
-  numOfEntries++;
-  Serial.println("Num of Entries: " + String(numOfEntries));
-  Serial.println("NextAddr: " + String(nextAddr));
-  myMem.write(0, numOfEntries);
+  int nextAddr = myMem.putString(currentNextAddr + 1, s);
+  myMem.write(currentNextAddr,byte(nextAddr-currentNextAddr));
+  myMem.write(nextAddr,0);
+  currentNextAddr = nextAddr;  
+  Serial.println("NextAddr: " + String(currentNextAddr));
 }
 
 void wipe() {
   myMem.erase();
-  myMem.write(0, 0);
-  numOfEntries = 0;
+  currentNextAddr = 0;
   Serial.println("Wiped!");
 }
 
