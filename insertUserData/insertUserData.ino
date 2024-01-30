@@ -5,19 +5,20 @@
 
 ExternalEEPROM myMem;
 const int buttonPin = 4;
-int currentNextAddr = 0;
+int currentNextAddr = 0;// Next free address
 
 void setup() {
+  // Set up
   Wire.begin();
   myMem.setMemoryType(16);
   Keyboard.begin(KeyboardLayout_de_DE);
   pinMode(buttonPin,INPUT);
 
-  delay(5000);
+  delay(5000); // Wait so Serial can start properly
 
-  awaitShortClick();
+  awaitShortClick(); // Waits for the user to click once, to start the password manager
 
-  if (myMem.begin() == false)  {
+  if (myMem.begin() == false) { // If no memory is detected, something went wrong
     printString("UH OH");
     while (true);
   }
@@ -27,20 +28,21 @@ void setup() {
   showData();
 }
 
+// Cycles through the data in memory, one String at a time
 void showData() {
-  if (myMem.read(0) == 0) {
+  if (myMem.read(0) == 0) { // If the first offset is loopback, there is no data
     printString("No Data avalable.\n");
   } else {
     String currentString = "";
     int l = 0;
-    while (true) {
-      myMem.getString(currentNextAddr + 1, currentString);
-      l = printString(currentString);
-      awaitShortClick();
-      deleteChars(l);
-      currentNextAddr += myMem.read(currentNextAddr);
-      if (myMem.read(currentNextAddr) == 0) {
-        currentNextAddr = 0;
+    while (true) { // Cycle through the data continously
+      myMem.getString(currentNextAddr + 1, currentString); // Get the next String
+      l = printString(currentString); // And print it
+      awaitShortClick(); // When the user wants to continue and see the next String,
+      deleteChars(l); // Delete the current String
+      currentNextAddr += myMem.read(currentNextAddr); // Get the next address (by adding the offset to the current one)
+      if (myMem.read(currentNextAddr) == 0) { // If the new offset is loopback, 
+        currentNextAddr = 0; // go back to the start
       }
     }
   }
