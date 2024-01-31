@@ -3,9 +3,15 @@
 #include <Keyboard_de_DE.h>
 #include "SparkFun_External_EEPROM.h" // Click here to get the library: http://librarymanager/All#SparkFun_External_EEPROM
 
+// Constants
 ExternalEEPROM myMem;
 const int buttonPin = 4;
 int currentNextAddr = 0;// Next free address
+const String CodeString = "Code: ";
+
+// Global variables
+String code;
+String currentData[3];
 
 void setup() {
   // Set up
@@ -25,11 +31,35 @@ void setup() {
 
   printString("BOOTED!\n");
 
-  showData();
+  getCode(); // Asks the user to enter the password and saves it to "code"
+  insertUserdata(); // Inserts the credentials
+
+  Keyboard.end();
+}
+
+// Asks the user to enter a 4-digit code to decrypt the passwords later on. The code is saved in the global variable "code"
+void getCode() {
+  printString(CodeString);
+  code = "";
+  for (int i = 0; i < 4; i++) { // Each digit is entered individually
+    int currentDigit = 0; 
+    printString(String(currentDigit));
+    while (true) { // Until the user confirms the current digit with a long press, this loop runs
+      if (awaitShortClick()) { // The button was pressed shortly, the user wants to increase the current digit by 1
+        currentDigit = (currentDigit + 1) % 10; // The digit is increased (modulo 10, so it stays one digit)
+        deleteChars(1); // The old current digit is deleted and
+        printString(String(currentDigit)); // The new one is printed
+      } else { // If button was pressed long, the user wants to confirm the current digit
+        code += String(currentDigit); // The current digit is saved to the code and
+        break; // the loop breaks to enter the next digit (or finish entering the code if it was the las one)
+      }
+    }
+  }
+  deleteChars(CodeString.length() + code.length()); // The current display is deleted, such that the user name can be entered properly
 }
 
 // Cycles through the data in memory, one String at a time
-void showData() {
+void insertUserdata() {
   if (myMem.read(0) == 0) { // If the first offset is loopback, there is no data
     printString("No Data avalable.\n");
   } else {
@@ -37,13 +67,36 @@ void showData() {
     int l = 0;
     while (true) { // Cycle through the data continously
       myMem.getString(currentNextAddr + 1, currentString); // Get the next String
-      l = printString(currentString); // And print it
-      awaitShortClick(); // When the user wants to continue and see the next String,
-      deleteChars(l); // Delete the current String
-      currentNextAddr += myMem.read(currentNextAddr); // Get the next address (by adding the offset to the current one)
-      if (myMem.read(currentNextAddr) == 0) { // If the new offset is loopback, 
-        currentNextAddr = 0; // go back to the start
+      splitString(currentString, char(9)); // Split it int name, username, password
+      l = printString(currentData[0]); // And print the name
+      if (awaitShortClick()) {// When the user wants to continue and see the next String,
+        deleteChars(l); // Delete the current String
+        currentNextAddr += myMem.read(currentNextAddr); // Get the next address (by adding the offset to the current one)
+        if (myMem.read(currentNextAddr) == 0) { // If the new offset is loopback, 
+          currentNextAddr = 0; // go back to the start
+        }
+      } else { // If the user wants this set of creddentials, 
+        deleteChars(l); // delete the name and enter
+        printString(currentData[1]); // username and
+        awaitShortClick();
+        printString(decrypt(currentData[2])); // password        
+        break;
       }
+    }
+  }
+}
+
+// Splits a given String at split into three substrings
+void splitString(String str, char split) {
+  int StringCount = 0;
+  while (str.length() > 0) { 
+    int index = str.indexOf(split);
+    if (index == -1) { // The String does not contain the splitting character (anymore)
+      currentData[StringCount++] = str;
+      break;
+    } else {
+      currentData[StringCount++] = str.substring(0, index); 
+      str = str.substring(index+1);
     }
   }
 }
@@ -74,6 +127,12 @@ void deleteChars(int length) {
   for (int i = 0; i < length; i++) {
     Keyboard.write(8);
   }
+}
+
+// Decrypts the given string with the saved code
+String decrypt(String password) {
+  // TODO
+  return password;
 }
 
 void loop(){
