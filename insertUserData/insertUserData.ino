@@ -8,6 +8,7 @@ ExternalEEPROM myMem;
 const int buttonPin = 4;
 int currentNextAddr = 0;// Next free address
 const String CodeString = "Code: ";
+bool savingMode = false;
 
 // Global variables
 String code;
@@ -17,24 +18,31 @@ void setup() {
   // Set up
   Wire.begin();
   myMem.setMemoryType(16);
-  Keyboard.begin(KeyboardLayout_de_DE);
   pinMode(buttonPin,INPUT);
+  Serial.begin(9600);
 
   delay(5000); // Wait so Serial can start properly
-
-  awaitShortClick(); // Waits for the user to click once, to start the password manager
 
   if (myMem.begin() == false) { // If no memory is detected, something went wrong
     printString("UH OH");
     while (true);
   }
+  Serial.println("BOOTED!");
 
-  printString("BOOTED!\n");
-
-  getCode(); // Asks the user to enter the password and saves it to "code"
-  insertUserdata(); // Inserts the credentials
-
-  Keyboard.end();
+  if(awaitShortClick()) { // A short click means insertion mode
+    Serial.println("Entering Insertion mode");
+    Keyboard.begin(KeyboardLayout_de_DE);
+    getCode(); // Asks the user to enter the password and saves it to "code"
+    insertUserdata(); // Inserts the credentials
+    Keyboard.end();
+  } else { // A long click means saving data mode
+    Serial.println("Entering Saving mode");
+    currentNextAddr = myMem.read(0);
+    while (myMem.read(currentNextAddr) != 0) {
+      currentNextAddr += myMem.read(currentNextAddr);
+    }
+    savingMode = true;
+  }
 }
 
 // Asks the user to enter a 4-digit code to decrypt the passwords later on. The code is saved in the global variable "code"
@@ -116,6 +124,23 @@ bool awaitShortClick() {
   }
 }
 
+// Writes s into the next free address
+void write(String s) {
+  int nextAddr = myMem.putString(currentNextAddr + 1, s); // The String has to be written one byte later than the next free address,
+                                                          // because that address is reserved for the offset
+  myMem.write(currentNextAddr,byte(nextAddr-currentNextAddr)); // Save the offset
+  myMem.write(nextAddr,0); // Set the next offset to loopback
+  currentNextAddr = nextAddr; // The new next free address is the one after the inserted String
+  Serial.println("NextAddr: " + String(currentNextAddr));
+}
+
+// Erases all memory
+void wipe() {
+  myMem.erase();
+  currentNextAddr = 0; // There is no data, so the first address is the loopback
+  Serial.println("Wiped!");
+}
+
 // Prints the given String and returns its length
 int printString(String s) {
   Keyboard.print(s);
@@ -136,4 +161,14 @@ String decrypt(String password) {
 }
 
 void loop(){
+  // Data is currently saved in memory via Serial
+  if ((Serial.available() > 0) && savingMode) { // If there is data in Serial and it is in saving mode
+    String s = Serial.readStringUntil('\n'); // Read it until the end of the line
+    if (s == "wipe"){ // If its the wipe command,
+      wipe(); // wipe the memory
+    } else { 
+      Serial.println("I received: " + s);
+      write(s); // Otherwise save the received data
+    }
+  }
 }
