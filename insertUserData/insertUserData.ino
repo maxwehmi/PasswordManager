@@ -131,7 +131,6 @@ void write(String s) {
   myMem.write(currentNextAddr,byte(nextAddr-currentNextAddr)); // Save the offset
   myMem.write(nextAddr,0); // Set the next offset to loopback
   currentNextAddr = nextAddr; // The new next free address is the one after the inserted String
-  Serial.println("NextAddr: " + String(currentNextAddr));
 }
 
 // Erases all memory
