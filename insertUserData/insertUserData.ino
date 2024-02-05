@@ -136,8 +136,7 @@ void write(String s) {
 
 // Erases all memory
 void wipe() {
-  myMem.erase();
-  currentNextAddr = 0; // There is no data, so the first address is the loopback
+  currentNextAddr = 0; // If the first address is loopback, the next new data will overwrite the the old "wiped" data
   Serial.println("Wiped!");
 }
 
