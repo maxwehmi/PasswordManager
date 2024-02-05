@@ -1,8 +1,6 @@
 import serial
 import time
 
-arduino = serial.Serial(port='/dev/ttyACM0', baudrate=9600)
-
 def arduinoRead():
 	data = arduino.read()
 	time.sleep(0.05)
@@ -33,10 +31,29 @@ def checkSavingMode():
 	data = arduinoRead()
 	return arduinoEquals("Entering Saving mode", data)
 
+def checkBoot():
+	data = arduinoRead()
+	if (not arduinoEquals("BOOTED!", data)):
+		print("Arduino did not boot properly. Exiting")
+		exit()
+
+
+while (True):
+	try:
+		arduino = serial.Serial(port='/dev/ttyACM0', baudrate=9600)
+		print("Connection found! Waiting for Arduino to boot")
+		checkBoot()
+		print("Arduino booted!")
+		break
+	except serial.serialutil.SerialException:
+		a = 0
+	time.sleep(0.5)
 
 if (not checkSavingMode()):
 	print("Arduino did not enter Saving mode. Exiting")
 	exit()
+
+print("Arduino ready for receiving data!")
 
 while True:
 	data = input("Send data: ")
