@@ -1,5 +1,8 @@
 import serial
+import os.path
 import time
+
+filename = "credentials.csv"
 
 def arduinoRead():
 	data = arduino.read()
@@ -21,6 +24,8 @@ def write(string):
 			print("Successfully wiped data!")
 		else:
 			print("Did not wipe properly!")
+	elif (string == "sendAll"):
+		return
 	else:
 		if (arduinoEquals("I received: " + string, data)):
 			print("Successfully transmitted data!")
@@ -37,6 +42,56 @@ def checkBoot():
 		print("Arduino did not boot properly. Exiting")
 		exit()
 
+def sendFile():
+	if (not ensureFile()):
+		print("File was empty, so nothing was sent!")
+		return
+	file = open(filename, 'r')
+	temp = file.read().splitlines()
+	for line in temp:
+		print(line)
+		write(line)
+	file.close()
+
+def getData():
+	ensureFile()
+	write("sendAll")
+	data = arduinoRead()
+	file = open(filename, 'a')
+	print(data) # save to file instead
+	file.close()
+
+def importData(): 
+	# TODO
+	return
+
+def enterCredentials():
+	code = input("Please enter the Code for the encryption:")
+	name = input("Please enter the name of the new set of credentials:")
+	username = input("Please enter the username:")
+	pw = input("Please enter the password:")
+	pw = encrypt(pw,code)
+	ensureFile()
+	file = open(filename, 'a')
+	cred = name + "	" + username + "	" + pw + "\n"
+	file.write(cred)
+	file.close()
+	print("Added the new set of credentials!")
+
+def encrypt(string,code):
+	# TODO
+	return string
+
+def ensureFile():
+	if (os.path.isfile(filename)):
+		return True
+	else: 
+		file = open(filename, 'w')
+		file.close()
+		return False
+
+
+print("Please connect the Arduino.")
 
 while (True):
 	try:
@@ -56,5 +111,14 @@ if (not checkSavingMode()):
 print("Arduino ready for receiving data!")
 
 while True:
-	data = input("Send data: ")
-	write(data)
+	command = input("What would you like to do?")
+	if (command == "S"): # (s)end file to stick
+		sendFile()
+	elif (command == "G"): # (g)et all data from the stick
+		getData()
+	elif (command == "I"): # (i)mport data from file
+		importData()
+	elif (command == "E"): # (e)nter new credentials
+		enterCredentials()
+	else:
+		print("Command not understood. Please try again.")
