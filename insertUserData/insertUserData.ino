@@ -112,12 +112,10 @@ void splitString(String str, char split) {
 // Waits for the button to be pressed and return true, if the click was short (<=300ms) and false if it was long (>300ms)
 bool awaitShortClick() {
   int buttonOnTime = 0;
-  bool buttonOn = false; // Could be removed and the condition in 5 lines replaced by buttonOnTime>0
   while (true) { // Tests every 10ms if the button is pressed
     if (digitalRead(buttonPin) == HIGH) { // If the button is pressed,
-      buttonOn = true; // it is saved that it was on and
-      buttonOnTime++; // increases the timer
-    } else if (buttonOn) { // If the button is not pressed, but was pressed, the click is over
+      buttonOnTime++; // increase the timer
+    } else if (buttonOnTime>0) { // If the button is not pressed, but was pressed, the click is over
       return (buttonOnTime <= 30); // Returns true, if the button was pressed for less than 30 ticks, so less than 300ms
     }
     delay(10);
@@ -158,12 +156,25 @@ String decrypt(String password) {
   return password;
 }
 
+// Sends all the saved data via serial
+void sendAll() {
+  int nextAddr = myMem.read(0);
+  String currentString = "";
+  while (myMem.read(nextAddr) != 0) {
+    myMem.getString(nextAddr + 1, currentString); // Get the next String
+    Serial.println(currentString); // Send it
+    nextAddr += myMem.read(nextAddr);
+  }
+}
+
 void loop(){
   // Data is currently saved in memory via Serial
   if ((Serial.available() > 0) && savingMode) { // If there is data in Serial and it is in saving mode
     String s = Serial.readStringUntil('\n'); // Read it until the end of the line
     if (s == "wipe"){ // If its the wipe command,
       wipe(); // wipe the memory
+    } else if (s == "sendAll") {
+      sendAll();
     } else { 
       Serial.println("I received: " + s);
       write(s); // Otherwise save the received data
