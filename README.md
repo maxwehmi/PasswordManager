@@ -1,1 +1,2 @@
-# PasswordManager
+# HardwarePasswordManager (HWPM)
+A PasswordManager in the form of a BadUSB based around the Arduino Micro to insert userdata automatically. The repository for the interface can be found [here](https://github.com/maxwehmi/HWPM-Interface).
