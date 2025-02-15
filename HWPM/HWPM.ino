@@ -9,9 +9,10 @@ const int buttonPin = 4;
 int currentNextAddr = 0;// Next free address
 const String CodeString = "Code: ";
 bool savingMode = false;
+const char* key = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!\"§$%&/()=^°{[]}\+*~#'-_.:,;<>|";
 
 // Global variables
-String code;
+int code[4];
 String currentData[3];
 
 void setup() {
@@ -48,7 +49,6 @@ void setup() {
 // Asks the user to enter a 4-digit code to decrypt the passwords later on. The code is saved in the global variable "code"
 void getCode() {
   printString(CodeString);
-  code = "";
   for (int i = 0; i < 4; i++) { // Each digit is entered individually
     int currentDigit = 0; 
     printString(String(currentDigit));
@@ -58,12 +58,12 @@ void getCode() {
         deleteChars(1); // The old current digit is deleted and
         printString(String(currentDigit)); // The new one is printed
       } else { // If button was pressed long, the user wants to confirm the current digit
-        code += String(currentDigit); // The current digit is saved to the code and
+        code[i] = currentDigit; // The current digit is saved to the code and
         break; // the loop breaks to enter the next digit (or finish entering the code if it was the las one)
       }
     }
   }
-  deleteChars(CodeString.length() + code.length()); // The current display is deleted, such that the user name can be entered properly
+  deleteChars(CodeString.length() + (*(&code + 1) - code)); // The current display is deleted, such that the user name can be entered properly
 }
 
 // Cycles through the data in memory, one String at a time
@@ -152,8 +152,16 @@ void deleteChars(int length) {
 
 // Decrypts the given string with the saved code
 String decrypt(String password) {
-  // TODO
-  return password;
+  char decryptedPW[password.length()]; // Create an array for the decrypted password
+  int j = 0; // Counts the current index in the code
+  for (int i = 0; i < password.length(); i++) {
+    int index = strchr(key, password[i]); // Find the position of the current character in the key
+    char newChar = key[(index - code[j]) % (*(&key + 1) - key)]; // Shift it the correct amount
+    decryptedPW[i] = newChar;
+    j = (j+1) % (*(&code + 1) - code); // Update the position in the code
+  }
+  String decryptedString = decryptedPW; // Convert the array to a string
+  return decryptedString; // And return it
 }
 
 // Sends all the saved data via serial
